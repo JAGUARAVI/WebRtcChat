@@ -5,9 +5,80 @@ import { Navigate } from 'react-router-dom';
 class Profile extends React.Component {
     constructor(props) {
         super(props);
+
+        this.state = {
+            message: '',
+            type: '',
+        }
+
+        this.avatarExists = true;
+        this.avatar = this.props.session ?
+            supabase.storage
+                .from('avatars')
+                .getPublicUrl(`${supabase.auth.user().id}.png`)
+                .publicURL + '?cache=' + Date.now()
+            : null;
+
+        this.replacement = supabase.storage
+            .from('avatars')
+            .getPublicUrl('default.png')
+            .publicURL;
     }
 
-    handleDetails() {
+    async handleDetails(event) {
+        event.preventDefault();
+
+        const username = document.getElementById('username').value;
+
+        const { error } = await supabase.auth.update({
+            data: {
+                username: username,
+            }
+        });
+
+        if (error) {
+            this.setState({
+                message: error.message,
+                type: 'danger',
+            });
+        } else {
+            this.setState({
+                message: 'Details updated!',
+                type: 'success',
+            });
+        }
+    }
+
+    async handleAvatar(event) {
+        event.preventDefault();
+
+        const selectedFile = document.getElementById('avatarUpload').files[0];
+        console.log(selectedFile);
+
+        if (selectedFile.size > 1500000) {
+            alert(`Max file size is 1.5MB! Your file is of ${(selectedFile.size / 1000000).toFixed(2)}MB.`);
+            return this.setState({
+                message: `Max file size is 1.5MB! Your file is of ${(selectedFile.size / 1000000).toFixed(2)}MB.`,
+                type: 'danger'
+            });
+        }
+
+        const { data, error } = await supabase.storage
+            .from('avatars').upload(`${supabase.auth.user().id}.png`, selectedFile, {
+                cacheControl: '3600',
+                upsert: true,
+            });
+
+        console.log(data, error);
+
+        if (error) this.setState({
+            message: error.message,
+            type: 'danger',
+        });
+        else this.setState({
+            message: 'Avatar updated!',
+            type: 'success',
+        });
     }
 
     render() {
@@ -28,9 +99,15 @@ class Profile extends React.Component {
                                 >
                                     <div className="card-body text-center">
                                         <img
+                                            id=""
                                             className="rounded-circle img-fluid d-inline-flex p-3"
-                                            src="assets/img/products/2.jpg?h=104fcc18ad179e4b0b9e0ee12b849bed"
                                             style={{ width: "100%", maxWidth: 300, aspectRatio: 1 }}
+                                            src={this.avatar}
+                                            onError={(e) => {
+                                                e.preventDefault();
+                                                this.avatarExists = false;
+                                                e.target.src = this.replacement;
+                                            }}
                                         />
                                         <button
                                             className="btn btn-outline-primary"
@@ -53,14 +130,22 @@ class Profile extends React.Component {
                                         >
                                             <div className="card-body">
                                                 <h4 className="card-title">Details</h4>
-                                                <form onSubmit={this.handleDetails.bind()}>
+                                                <form onSubmit={this.handleDetails.bind(this)}>
+                                                    {
+                                                        this.state.message.length > 0 ? (
+                                                            <div className={`alert alert-${this.state.type} w-100`} role="alert">
+                                                                {this.state.message}
+                                                            </div>
+                                                        ) : null
+                                                    }
                                                     <div className="mb-2">
                                                         <label className="form-label">Username</label>
                                                         <input
+                                                            id="username"
                                                             className="form-control form-control-sm"
                                                             type="text"
-                                                            autofocus=""
-                                                            value={user.user_metadata.username}
+                                                            autoFocus=""
+                                                            defaultValue={user.user_metadata.username}
                                                         />
                                                         <small className="form-text">
                                                             This will be your default name when joining meetings.
@@ -69,10 +154,12 @@ class Profile extends React.Component {
                                                     <div className="mb-4">
                                                         <label className="form-label">Email</label>
                                                         <input
+                                                            id="email"
                                                             className="form-control form-control-sm"
                                                             type="email"
                                                             inputMode="email"
                                                             value={user.email}
+                                                            disabled={true}
                                                         />
                                                     </div>
                                                     <div className="mb-4">
@@ -80,12 +167,13 @@ class Profile extends React.Component {
                                                         <button
                                                             className="btn btn-light btn-sm d-block w-100"
                                                             type="button"
+                                                            disabled={true}
                                                         >
                                                             Change Password
                                                         </button>
                                                     </div>
                                                     <div className="text-start mt-2">
-                                                        <button className="btn btn-outline-primary" type="button">
+                                                        <button className="btn btn-outline-primary" type="submit">
                                                             <i className="fas fa-save" />
                                                             &nbsp; Save Details
                                                         </button>
@@ -110,6 +198,7 @@ class Profile extends React.Component {
                         role="document"
                     >
                         <div className="modal-content">
+                            <form id="avatarForm" onSubmit={this.handleAvatar.bind(this)} encType="multipart/form-data">
                             <div className="modal-header">
                                 <h4 className="modal-title">Change Avatar</h4>
                                 <button
@@ -121,18 +210,18 @@ class Profile extends React.Component {
                             </div>
                             <div className="modal-body">
                                 <p>Upload your new Avatar</p>
-                                <form>
+
                                     <input
+                                        id="avatarUpload"
                                         className="form-control"
                                         type="file"
                                         data-bs-toggle="tooltip"
                                         data-bss-tooltip=""
-                                        required=""
+                                        required={true}
                                         accept="image/*"
                                         name="avatar"
                                         title="Max File SIze: 1MB"
                                     />
-                                </form>
                             </div>
                             <div className="modal-footer">
                                 <button
@@ -142,10 +231,11 @@ class Profile extends React.Component {
                                 >
                                     Cancel
                                 </button>
-                                <button className="btn btn-outline-primary" type="button">
+                                    <button className="btn btn-outline-primary" type="submit">
                                     Save
                                 </button>
-                            </div>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>

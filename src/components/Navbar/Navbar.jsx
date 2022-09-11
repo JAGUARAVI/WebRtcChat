@@ -9,11 +9,13 @@ class Navbar extends React.Component {
             supabase.storage
                 .from('avatars')
                 .getPublicUrl(`${supabase.auth.user().id}.png`)
+                .publicURL
             : null;
 
         const replacement = supabase.storage
             .from('avatars')
-            .getPublicUrl('default.png');
+            .getPublicUrl('default.png')
+            .publicURL;
 
         return (
             <nav className="navbar navbar-dark navbar-expand-md fixed-top navbar-shrink py-3" id="mainNav">
@@ -45,10 +47,11 @@ class Navbar extends React.Component {
                                             <img
                                                 id="avatar"
                                                 className="rounded-circle img-profile"
-                                                src={avatar.publicURL}
+                                                src={avatar}
                                                 style={{ aspectRatio: 1, maxHeight: "3rem", border: "none" }}
                                                 onError={(e) => {
-                                                    document.getElementById('avatar').src = replacement.publicURL;
+                                                    e.preventDefault();
+                                                    e.target.src = replacement;
                                                 }}
                                             />
                                             <span className="d-none d-lg-inline me-2 text-gray-600">
