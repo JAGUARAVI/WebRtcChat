@@ -28,7 +28,7 @@ class App extends React.Component {
         return (
             <Router>
                 <Routes>
-                    <Route path="/" element={
+                    <Route path='/' element={
                         <>
                             <Navbar session={this.state.session} />
                             <div style={{
@@ -41,32 +41,32 @@ class App extends React.Component {
                             </div>
                         </>
                     } />
-                    <Route path="/meeting/:id" element={
+                    <Route path='/meeting/:id' element={
                         <>
                             <Navbar session={this.state.session} />
                             <Main session={this.state.session} />
                         </>
                     }
                     />
-                    <Route path="/signin" element={
+                    <Route path='/signin' element={
                         <>
                             <Navbar session={this.state.session} />
                             <Signin session={this.state.session} />
                         </>
                     } />
-                    <Route path="/signup" element={
+                    <Route path='/signup' element={
                         <>
                             <Navbar session={this.state.session} />
                             <Signup session={this.state.session} />
                         </>
                     } />
-                    <Route path="/test" element={
+                    <Route path='/test' element={
                         <>
                             <Navbar session={this.state.session} />
                             <Test session={this.state.session} />
                         </>
                     } />
-                    <Route path="*" element={
+                    <Route path='*' element={
                         <>
                             <Navbar session={this.state.session} />
                             <Error404 />

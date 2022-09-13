@@ -8,6 +8,8 @@ import io from 'socket.io-client';
 import 'webrtc-adapter';
 import EventEmitter from '../../EventEmitter';
 import { supabase } from '../../supabaseClient';
+import { getTfLite } from '../../core/helpers/getTfLite';
+import { buildCanvas2dPipeline } from '../../pipelines/canvas2d/canvas2dPipeline';
 
 const withParams = (props) => {
   return props => <App {...props} params={useParams()} />;
@@ -46,12 +48,10 @@ class App extends React.Component {
 
     this.state = {
       loading: true,
-      message: {
-        text: '',
-        type: '',
-      },
+      message: 'Connecting to server...',
       connected: false,
       stream: new MediaStream(),
+      localStream: new MediaStream(),
       media: [],
       peers: [],
       meeting: {
@@ -63,81 +63,105 @@ class App extends React.Component {
         camera: localStorage.getItem('camera'),
         speaker: localStorage.getItem('speaker'),
       },
-      devices: { microphones: [], cameras: [], speakers: [], }
+      devices: { microphones: [], cameras: [], speakers: [], },
+      background: {
+        type: 'none',
+        image: '',
+      }
     };
 
-    this.comms = new EventEmitter();
+    this.renderRequestId = null;
+    this.canvasRender = async () => { }
+    this.updatePostProcessingConfig = () => { };
 
-    this.comms.on('dataRequest', (id) => {
-      this.comms.emit(id, this.state.media.find((val) => val.id === id));
-    });
+    this.canvas = document.createElement('canvas');
+    this.video = document.createElement('video');
 
-    this.comms.on('mute', (state) => {
-      this.state.stream.getAudioTracks().map((track) => track.enabled = !state);
-      this.state.media.find((val) => val.id === 'local').data.clientMute = state;
-    });
+    {
+      this.comms = new EventEmitter();
 
-    this.comms.on('videoDisable', (state) => {
-      this.state.stream.getVideoTracks().map((track) => track.enabled = !state);
-      this.state.media.find((val) => val.id === 'local').data.clientVideoHide = state;
-    });
+      this.comms.on('dataRequest', (id) => {
+        this.comms.emit(id, this.state.media.find((val) => val.id === id));
+      });
 
-    document.title = this.state.meeting.name;
+      this.comms.on('mute', (state) => {
+        this.state.stream.getAudioTracks().map((track) => track.enabled = !state);
+        this.state.media.find((val) => val.id === 'local').data.clientMute = state;
+      });
 
-    this.socket = io(SIGNALING_SERVER);
-    this.socket.on('connect', async () => {
-      this.socket.emit('auth', props.session.access_token);
-      this.socket.on('ok', () => {
-        if (DEBUG) console.log('Connected to Signaling Server');
-        this.state.media.push({
-          id: 'local',
-          type: 'local',
-          connection: null,
-          data: { name: `${supabase.auth.user().user_metadata.username} (Me)`, clientMute: false, clientVideoHide: false, peerMute: false, peerVideoHide: false, position: 0 },
-          stream: this.state.stream,
-          sender: [null, null]
-        });
-        this.onConnection.bind(this)();
-      })
-    });
+      this.comms.on('videoDisable', (state) => {
+        this.state.stream.getVideoTracks().map((track) => track.enabled = !state);
+        this.state.media.find((val) => val.id === 'local').data.clientVideoHide = state;
+      });
+
+      document.title = this.state.meeting.name;
+
+      this.socket = io(SIGNALING_SERVER);
+      this.socket.on('connect', async () => {
+        this.socket.emit('auth', props.session.access_token);
+        this.socket.on('ok', () => {
+          if (DEBUG) console.log('Connected to Signaling Server');
+          this.state.media.push({
+            id: 'local',
+            type: 'local',
+            connection: null,
+            data: { name: `${supabase.auth.user().user_metadata.username} (Me)`, clientMute: false, clientVideoHide: false, peerMute: false, peerVideoHide: false, position: 0 },
+            stream: this.state.stream,
+            sender: [null, null]
+          });
+
+          this.setState({
+            message: 'Loading devices...',
+          });
+
+          this.onConnection.bind(this)();
+        })
+      });
 
 
-    const intervals = {};
+      const intervals = {};
 
-    setInterval(() => {
-      this.state.peers.forEach((peer) => {
-        const id = peer.id;
-        const receiver = peer.connection.getReceivers().find((r) => r.track.kind == 'audio');
+      setInterval(() => {
+        this.state.peers.forEach((peer) => {
+          const id = peer.id;
+          const receiver = peer.connection.getReceivers().find((r) => r.track.kind == 'audio');
 
-        if (receiver && receiver.getSynchronizationSources) {
-          const source = receiver.getSynchronizationSources()[0];
-          if (source?.audioLevel > AUDIO_THRESHOLD) {
-            this.comms.emit('voiceActivity', id, true);
+          if (receiver && receiver.getSynchronizationSources) {
+            const source = receiver.getSynchronizationSources()[0];
+            if (source?.audioLevel > AUDIO_THRESHOLD) {
+              this.comms.emit('voiceActivity', id, true);
 
-            const func = () => {
-              const newSource = receiver.getSynchronizationSources()[0];
-              if (newSource?.audioLevel <= 0.01) {
-                this.comms.emit('voiceActivity', id, false);
+              const func = () => {
+                const newSource = receiver.getSynchronizationSources()[0];
+                if (newSource?.audioLevel <= 0.01) {
+                  this.comms.emit('voiceActivity', id, false);
 
+                  clearInterval(intervals[id]);
+                  intervals[id] = null;
+                }
+              };
+
+              if (!intervals) {
+                intervals[id] = setInterval(func, 2000);
+              } else {
                 clearInterval(intervals[id]);
-                intervals[id] = null;
+                intervals[id] = setInterval(func, 2000);
               }
-            };
-
-            if (!intervals) {
-              intervals[id] = setInterval(func, 2000);
-            } else {
-              clearInterval(intervals[id]);
-              intervals[id] = setInterval(func, 2000);
             }
           }
-        }
-      });
-    }, 100);
+        });
+      }, 100);
+    }
   }
 
   async onConnection() {
     if (!this.state.stream.getTracks().length) await this.refreshStream();
+
+    let ready = this.state.stream.getVideoTracks().length > 0;
+    while (!ready) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      ready = this.state.stream.getVideoTracks().length > 0;
+    }
 
     const data = {
       channel: this.state.meeting.id,
@@ -208,14 +232,15 @@ class App extends React.Component {
       const remote = new MediaStream();
 
       connection.ontrack = async (event) => {
-        if (DEBUG) console.log('ontrack', event);
-        await event.track.applyConstraints({ audio: CONSTRAINS.audio });
+        if (DEBUG) console.log('ontrack', event.track);
+        if (event.track.kind === 'audio') await event.track.applyConstraints({ audio: CONSTRAINS.audio });
         remote.addTrack(event.track);
       };
 
       const localAudio = this.state.stream.getAudioTracks()[0];
       const localVideo = this.state.stream.getVideoTracks()[0];
-      if (DEBUG) console.log('local av', localAudio, localVideo);
+      if (DEBUG) console.log('Sending AV:', localAudio, localVideo);
+
       const sender = [
         localAudio ? connection.addTrack(localAudio, this.state.stream) : null,
         localVideo ? connection.addTrack(localVideo, this.state.stream) : null,
@@ -325,27 +350,35 @@ class App extends React.Component {
       return new MediaStream();
     });
 
-    this.state.stream.getTracks().map((track) => this.state.stream.removeTrack(track));
-    stream.getTracks().map((track) => this.state.stream.addTrack(track));
+    this.state.localStream.getTracks().map((track) => this.state.localStream.removeTrack(track));
+    this.state.stream.getAudioTracks().map((track) => this.state.stream.removeTrack(track));
 
-    const cloned = this.state.stream.clone();
-    cloned.getTracks().map((track) => track.enabled = true);
-    document.getElementById('preview').srcObject = cloned;
+    stream.getTracks().map((track) => this.state.localStream.addTrack(track));
+    stream.getAudioTracks().map((track) => this.state.stream.addTrack(track));
+
+    this.video.srcObject = this.state.localStream;
 
     this.updateRemoteStreams.bind(this)();
   }
 
-  updateRemoteStreams() {
-    const audio = this.state.stream.getAudioTracks()[0];
-    const video = this.state.stream.getVideoTracks()[0];
+  async updateRemoteStreams(audio, video) {
+    if (!audio) audio = this.state.stream.getAudioTracks()[0];
+    if (!video) video = this.state.stream.getVideoTracks()[0];
 
-    this.state.media.forEach((media) => {
+    if (DEBUG) console.log('updateRemoteStreams', audio, video);
+
+    this.state.media.map(async (media) => {
       if (media.type == 'local' || media.id == 'local') return;
 
-      if (media.sender[0]) media.sender[0].replaceTrack(audio);
-      else media.sender[0] = this.state.peers.find((p) => p.id == media.id).connection.addTrack(audio, this.state.stream);
-      if (media.sender[1]) media.sender[1].replaceTrack(video);
-      else media.sender[1] = this.state.peers.find((p) => p.id == media.id).connection.addTrack(video, this.state.stream);
+      if (audio != null) {
+        if (media.sender[0]) media.sender[0] = await media.sender[0].replaceTrack(audio);
+        else media.sender[0] = this.state.peers.find((p) => p.id == media.id).connection.addTrack(audio, this.state.stream);
+      }
+
+      if (video != null) {
+        if (media.sender[1]) media.sender[1] = await media.sender[1].replaceTrack(video);
+        else media.sender[1] = this.state.peers.find((p) => p.id == media.id).connection.addTrack(video, this.state.stream);
+      }
     })
   }
 
@@ -378,20 +411,58 @@ class App extends React.Component {
     });
   }
 
-  refreshDevices() {
-    this.getDevices().then((devices) => {
-      this.setState({
-        devices: {
-          cameras: devices[0],
-          microphones: devices[1],
-          speakers: devices[2]
-        }
-      });
+  async refreshDevices() {
+    const devices = await this.getDevices();
+    this.setState({
+      devices: {
+        cameras: devices[0],
+        microphones: devices[1],
+        speakers: devices[2]
+      }
     });
   }
 
-  componentDidMount() {
-    this.refreshDevices.bind(this)();
+  async renderBg() {
+    await this.canvasRender();
+    this.renderRequestId = requestAnimationFrame(this.renderBg.bind(this));
+  }
+
+  async componentDidMount() {
+    await this.refreshDevices.bind(this)();
+
+    const [tflite] = await getTfLite();
+
+    const { height, width } = this.state.localStream.getVideoTracks()[0]?.getSettings();
+
+    const video = document.createElement('video');
+    video.srcObject = this.state.localStream;
+    video.classList.add('d-none');
+    document.body.appendChild(video);
+
+    video.play();
+
+    const canvas = document.getElementById('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const data = buildCanvas2dPipeline({
+      htmlElement: video,
+      width,
+      height,
+    }, { type: this.state.background.type }, { inputResolution: '160x96' }, canvas, tflite);
+
+    this.canvasRender = data.render;
+    this.updatePostProcessingConfig = data.updatePostProcessingConfig;
+
+    this.updatePostProcessingConfig({
+      smoothSegmentationMask: true,
+    });
+
+    const stream = document.getElementById('canvas').captureStream(30);
+    this.state.stream.getVideoTracks().map((track) => this.state.stream.removeTrack(track));
+    stream.getTracks().map((track) => this.state.stream.addTrack(track));
+
+    this.renderBg.bind(this)();
   }
 
   componentDidUpdate() {
@@ -405,59 +476,60 @@ class App extends React.Component {
   }
 
   componentWillUnmount() {
+    cancelAnimationFrame(this.renderRequestId);
     this.socket.close();
   }
 
   render() {
     const Settings = (
-      <div className="modal fade text-dark" role="dialog" tabIndex={-1} id="modal-1" style={{ background: 'var(--bs-border-color-translucent)' }} data-component="SettingsModal">
-        <div className="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-lg-down" role="document">
-          <div className="modal-content">
-            <div className="modal-header" style={{ '--bsBodyColor': 'var(--bs-gray-dark)', color: 'var(--bs-gray-dark)' }}>
-              <h4 className="modal-title">Settings</h4>
-              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+      <div className='modal fade text-dark' role='dialog' tabIndex={-1} id='modal-1' style={{ background: 'var(--bs-border-color-translucent)' }} data-component='SettingsModal'>
+        <div className='modal-dialog modal-xl modal-dialog-centered modal-fullscreen-lg-down' role='document'>
+          <div className='modal-content'>
+            <div className='modal-header' style={{ '--bsBodyColor': 'var(--bs-gray-dark)', color: 'var(--bs-gray-dark)' }}>
+              <h4 className='modal-title'>Settings</h4>
+              <button type='button' className='btn-close' data-bs-dismiss='modal' aria-label='Close' />
             </div>
-            <div className="modal-body">
-              <div className="container">
-                <ul className="nav nav-pills nav-justified" role="tablist" style={{ margin: '10px', padding: '10px' }}>
-                  <li className="nav-item" role="presentation">
-                    <a className="nav-link active d-inline-flex justify-content-center align-items-center" role="tab" data-bs-toggle="pill" href="#tab-1" style={{ '--bsBodyBg': 'var(--bs-blue)' }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" className="bi bi-gear-fill">
-                        <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z">
+            <div className='modal-body'>
+              <div className='container'>
+                <ul className='nav nav-pills nav-justified' role='tablist' style={{ margin: '10px', padding: '10px' }}>
+                  <li className='nav-item' role='presentation'>
+                    <a className='nav-link active d-inline-flex justify-content-center align-items-center' role='tab' data-bs-toggle='pill' href='#tab-1' style={{ '--bsBodyBg': 'var(--bs-blue)' }}>
+                      <svg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' fill='currentColor' viewBox='0 0 16 16' className='bi bi-gear-fill'>
+                        <path d='M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z'>
                         </path>
                       </svg>
                       &nbsp; General
                     </a>
                   </li>
-                  <li className="nav-item" role="presentation">
-                    <a className="nav-link d-inline-flex justify-content-center align-items-center" role="tab" data-bs-toggle="pill" href="#tab-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" className="bi bi-mic-fill">
-                        <path d="M5 3a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0V3z" />
-                        <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z">
+                  <li className='nav-item' role='presentation'>
+                    <a className='nav-link d-inline-flex justify-content-center align-items-center' role='tab' data-bs-toggle='pill' href='#tab-2'>
+                      <svg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' fill='currentColor' viewBox='0 0 16 16' className='bi bi-mic-fill'>
+                        <path d='M5 3a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0V3z' />
+                        <path d='M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z'>
                         </path>
                       </svg>
                       &nbsp; Audio
                     </a>
                   </li>
-                  <li className="nav-item" role="presentation">
-                    <a className="nav-link d-inline-flex justify-content-center align-items-center" role="tab" data-bs-toggle="pill" href="#tab-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" className="bi bi-camera-video-fill">
-                        <path fillRule="evenodd" d="M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2V5z">
+                  <li className='nav-item' role='presentation'>
+                    <a className='nav-link d-inline-flex justify-content-center align-items-center' role='tab' data-bs-toggle='pill' href='#tab-3'>
+                      <svg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' fill='currentColor' viewBox='0 0 16 16' className='bi bi-camera-video-fill'>
+                        <path fillRule='evenodd' d='M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2V5z'>
                         </path>
                       </svg>
                       &nbsp; Video
                     </a>
                   </li>
                 </ul>
-                <div className="tab-content">
-                  <div className="tab-pane fade show active" role="tabpanel" id="tab-1">
+                <div className='tab-content'>
+                  <div className='tab-pane fade show active' role='tabpanel' id='tab-1'>
                     <p>Nothing Here Yet...</p>
                   </div>
-                  <div className="tab-pane fade" role="tabpanel" id="tab-2">
-                    <div className="row">
-                      <div className="col d-flex justify-content-around col-12 p-4">
+                  <div className='tab-pane fade' role='tabpanel' id='tab-2'>
+                    <div className='row'>
+                      <div className='col d-flex justify-content-around col-12 p-4'>
                         <span>Speaker</span>
-                        <select id="speaker" className="form-select-sm" onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, speaker: elem.target.value } }))} value={this.state.selected.speaker || ''}>
+                        <select id='speaker' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, speaker: elem.target.value } }))} value={this.state.selected.speaker || ''}>
                           {
                             this.state.devices.speakers.map((speaker) => (
                               <option value={speaker.deviceId} key={speaker.label}>{speaker.label}</option>
@@ -465,9 +537,9 @@ class App extends React.Component {
                           }
                         </select>
                       </div>
-                      <div className="col d-flex justify-content-around col-12 p-4">
+                      <div className='col d-flex justify-content-around col-12 p-4'>
                         <span>Microphone</span>
-                        <select id="microphone" className="form-select-sm" onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, microphone: elem.target.value } }))} value={this.state.selected.microphone || ''}>
+                        <select id='microphone' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, microphone: elem.target.value } }))} value={this.state.selected.microphone || ''}>
                           {
                             this.state.devices.microphones.map((microphone) => (
                               <option value={microphone.deviceId} key={microphone.label}>{microphone.label}</option>
@@ -477,11 +549,11 @@ class App extends React.Component {
                       </div>
                     </div>
                   </div>
-                  <div className="tab-pane fade" role="tabpanel" id="tab-3">
-                    <div className="row">
-                      <div className="col-lg-6 d-flex justify-content-around align-items-sm-center align-items-md-center align-items-lg-center align-items-xl-center align-items-xxl-center col-md-12 col-lg-6 p-4">
+                  <div className='tab-pane fade' role='tabpanel' id='tab-3'>
+                    <div className='row'>
+                      <div className='col-lg-6 d-flex justify-content-around align-items-sm-center align-items-md-center align-items-lg-center align-items-xl-center align-items-xxl-center col-md-12 col-lg-6 p-4'>
                         <span>Camera</span>
-                        <select id="camera" className="form-select-sm" onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, camera: elem.target.value } }))} value={this.state.selected.camera || ''}>
+                        <select id='camera' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, camera: elem.target.value } }))} value={this.state.selected.camera || ''}>
                           {
                             this.state.devices.cameras.map((camera) => (
                               <option value={camera.deviceId} key={camera.label}>{camera.label}</option>
@@ -489,15 +561,15 @@ class App extends React.Component {
                           }
                         </select>
                       </div>
-                      <div className="col d-flex justify-content-around justify-content-xl-center align-items-xl-center col-md-12 col-lg-6 p-4" style={{ paddingTop: '12px' }}>
-                        <video id="preview" width={400} style={{ padding: '12px' }} muted={true} autoPlay={true} preload="none" />
+                      <div className='col d-flex justify-content-around justify-content-xl-center align-items-xl-center col-md-12 p-4' style={{ paddingTop: '12px' }}>
+                        <canvas id='canvas'></canvas>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="modal-footer d-inline-flex justify-content-center"><button className="btn btn-primary btn-sm align-items-center" type="button" onClick={this.refreshDevices.bind(this)}><i className="fa fa-refresh" />&nbsp; Refresh Devices</button></div>
+            <div className='modal-footer d-inline-flex justify-content-center'><button className='btn btn-primary btn-sm align-items-center' type='button' onClick={this.refreshDevices.bind(this)}><i className='fa fa-refresh' />&nbsp; Refresh Devices</button></div>
           </div>
         </div >
       </div >
@@ -508,18 +580,18 @@ class App extends React.Component {
     return this.props.session ? (
       <>
         {
-          this.state.loading ? <Loading /> : null
+          this.state.loading ? <Loading message={this.state.message} /> : null
         }
-        <section className="py-5 mt-5">
-          <div className="container">
-            <div className="row mb-3">
-              <div className="col-md-8 col-xl-6 text-center mx-auto">
-                <h2 className="fw-bold">{name}</h2>
+        <section className='py-5 mt-5'>
+          <div className='container'>
+            <div className='row mb-3'>
+              <div className='col-md-8 col-xl-6 text-center mx-auto'>
+                <h2 className='fw-bold'>{name}</h2>
               </div>
             </div>
             <div
-              id="data-row"
-              className="row mx-auto"
+              id='data-row'
+              className='row mx-auto'
             >
               {
                 this.state.media.map((media) => (
@@ -531,6 +603,9 @@ class App extends React.Component {
           </div>
         </section>
         {Settings}
+        {
+
+        }
         <Menu comms={this.comms} />
       </>
     ) : (

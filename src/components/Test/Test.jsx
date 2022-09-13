@@ -1,39 +1,72 @@
 import React from 'react';
-import useTFLite from '../../hooks/useTFLite';
-import useRenderingPipeline from '../../hooks/useRenderingPipeline';
-import { useState } from 'react';
+import { buildCanvas2dPipeline } from '../../pipelines/canvas2d/canvas2dPipeline';
+import { getTfLite } from '../../core/helpers/getTfLite';
+import { useEffect, useState } from 'react';
 
 function Test(params) {
-    navigator.mediaDevices.getUserMedia({
-        video: true
-    }).then((stream) => {
-        const video = document.getElementById('video');
-        video.srcObject = stream;
-    });
-    const { tflite, isSIMDSupported } = useTFLite({
-        model: 'meet',
-        backend: 'wasm',
-        inputResolution: '160x96',
-        pipeline: 'webgl2',
-    });
+    let renderRequestId;
+    let c = 0;
 
-    const { pipeline, backgroundImageRef, canvasRef, fps, durations: [resizingDuration, inferenceDuration, postProcessingDuration], } = useRenderingPipeline({
-        type: 'camera',
-        htmlElement: document.getElementById('video'),
-        width: 640,
-        height: 480,
-    }, {
-        type: 'blue'
-    }, {
-        model: 'meet',
-        backend: isSIMDSupported ? 'wasmSimd' : 'wasm',
-        inputResolution: '160x96',
-        pipeline: 'webgl2',
-    }, null, tflite);
+    useEffect(() => {
+        const promise = navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: '9536a059fbfcaa1687ff7092e95823edd7568c12ec5224f9c443dd215aab58df'
+            }
+        });
+
+        let cleanUp = () => { };
+        let renderIt = async () => { };
+        let updatePostProcessingConfig = () => { };
+
+        getTfLite('160x96').then(async ([tflite, simd]) => {
+            const stream = await promise;
+            const { width, height } = stream.getVideoTracks()[0].getSettings();
+
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+
+            const canvas = document.getElementById('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            document.getElementById('overlay').style.top = `-${height / 2}px`;
+
+            const data = buildCanvas2dPipeline({
+                type: 'camera',
+                htmlElement: video,
+                width,
+                height,
+            }, { type: 'image' }, { inputResolution: '160x96' }, document.getElementById('canvas'), tflite);
+
+            cleanUp = data.cleanUp;
+            renderIt = data.render;
+            updatePostProcessingConfig = data.updatePostProcessingConfig;
+
+            updatePostProcessingConfig({
+                smoothSegmentationMask: true,
+            });
+        });
+
+        async function render() {
+            await renderIt();
+            renderRequestId = requestAnimationFrame(render);
+        }
+        render();
+
+        return () => {
+            cleanUp();
+            cancelAnimationFrame(renderRequestId);
+        };
+    }, []);
 
 
     return (
-        <video id="video" width={640} height={480}></video>
+        <>
+            <video id='video' className='-none' autoPlay={true}></video>
+            <div><canvas id='canvas'></canvas>
+                <div id='overlay' style={{ position: 'relative' }}>{c}</div>
+            </div>
+        </>
     );
 }
 

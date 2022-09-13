@@ -9,6 +9,10 @@
     z-index: 1;
 }
 
+.loaderContainer {
+    display: flex;
+}
+
 .wave {
     width: 5px;
     height: 100px;
