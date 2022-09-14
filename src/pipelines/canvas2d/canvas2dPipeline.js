@@ -25,6 +25,9 @@ export function buildCanvas2dPipeline(sourcePlayback, backgroundConfig, segmenta
     function updatePostProcessingConfig(newPostProcessingConfig) {
         postProcessingConfig = newPostProcessingConfig;
     }
+    function updateBackgroundConfig(newBackgroundConfig) {
+        backgroundConfig = newBackgroundConfig;
+    }
     function cleanUp() {
         // Nothing to clean up in this rendering pipeline
     }
@@ -82,5 +85,5 @@ export function buildCanvas2dPipeline(sourcePlayback, backgroundConfig, segmenta
         ctx.filter = 'blur(8px)'; // FIXME Does not work on Safari
         ctx.drawImage(sourcePlayback.htmlElement, 0, 0);
     }
-    return { render, updatePostProcessingConfig, cleanUp };
+    return { render, updatePostProcessingConfig, updateBackgroundConfig, cleanUp };
 }

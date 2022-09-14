@@ -65,7 +65,7 @@ class App extends React.Component {
       },
       devices: { microphones: [], cameras: [], speakers: [], },
       background: {
-        type: 'none',
+        type: localStorage.getItem('background'),
         image: '',
       }
     };
@@ -73,6 +73,7 @@ class App extends React.Component {
     this.renderRequestId = null;
     this.canvasRender = async () => { }
     this.updatePostProcessingConfig = () => { };
+    this.updateBackgroundConfig = () => { };
 
     this.canvas = document.createElement('canvas');
     this.video = document.createElement('video');
@@ -257,6 +258,8 @@ class App extends React.Component {
         sender
       });
 
+      this.comms.emit('media', { length: this.state.media.length });
+
       if (config.should_create_offer) {
         if (DEBUG) console.log('Creating RTC offer to', peerId);
 
@@ -427,9 +430,7 @@ class App extends React.Component {
     this.renderRequestId = requestAnimationFrame(this.renderBg.bind(this));
   }
 
-  async componentDidMount() {
-    await this.refreshDevices.bind(this)();
-
+  async canvasPipeline() {
     const [tflite] = await getTfLite();
 
     const { height, width } = this.state.localStream.getVideoTracks()[0]?.getSettings();
@@ -453,6 +454,7 @@ class App extends React.Component {
 
     this.canvasRender = data.render;
     this.updatePostProcessingConfig = data.updatePostProcessingConfig;
+    this.updateBackgroundConfig = data.updateBackgroundConfig;
 
     this.updatePostProcessingConfig({
       smoothSegmentationMask: true,
@@ -465,6 +467,11 @@ class App extends React.Component {
     this.renderBg.bind(this)();
   }
 
+  async componentDidMount() {
+    await this.refreshDevices.bind(this)();
+    await this.canvasPipeline.bind(this)();
+  }
+
   componentDidUpdate() {
     if (this.state.selected.camera != localStorage.getItem('camera') || this.state.selected.microphone != localStorage.getItem('microphone') || this.state.selected.speaker != localStorage.getItem('speaker')) {
       localStorage.setItem('microphone', this.state.selected.microphone);
@@ -473,6 +480,13 @@ class App extends React.Component {
 
       this.refreshStream.bind(this)();
     }
+
+    if (this.state.background.type != localStorage.getItem('background') || this.state.background.image != localStorage.getItem('backgroundImage')) {
+      localStorage.setItem('background', this.state.background.type);
+      localStorage.setItem('backgroundImage', this.state.background.image);
+    }
+
+    this.updateBackgroundConfig(this.state.background);
   }
 
   componentWillUnmount() {
@@ -498,7 +512,7 @@ class App extends React.Component {
                         <path d='M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z'>
                         </path>
                       </svg>
-                      &nbsp; General
+                      &nbsp; <strong>General</strong>
                     </a>
                   </li>
                   <li className='nav-item' role='presentation'>
@@ -508,7 +522,7 @@ class App extends React.Component {
                         <path d='M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z'>
                         </path>
                       </svg>
-                      &nbsp; Audio
+                      &nbsp; <strong>Audio</strong>
                     </a>
                   </li>
                   <li className='nav-item' role='presentation'>
@@ -517,7 +531,7 @@ class App extends React.Component {
                         <path fillRule='evenodd' d='M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2V5z'>
                         </path>
                       </svg>
-                      &nbsp; Video
+                      &nbsp; <strong>Video</strong>
                     </a>
                   </li>
                 </ul>
@@ -528,7 +542,7 @@ class App extends React.Component {
                   <div className='tab-pane fade' role='tabpanel' id='tab-2'>
                     <div className='row'>
                       <div className='col d-flex justify-content-around col-12 p-4'>
-                        <span>Speaker</span>
+                        <strong>Speaker</strong>
                         <select id='speaker' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, speaker: elem.target.value } }))} value={this.state.selected.speaker || ''}>
                           {
                             this.state.devices.speakers.map((speaker) => (
@@ -538,7 +552,7 @@ class App extends React.Component {
                         </select>
                       </div>
                       <div className='col d-flex justify-content-around col-12 p-4'>
-                        <span>Microphone</span>
+                        <strong>Microphone</strong>
                         <select id='microphone' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, microphone: elem.target.value } }))} value={this.state.selected.microphone || ''}>
                           {
                             this.state.devices.microphones.map((microphone) => (
@@ -550,9 +564,11 @@ class App extends React.Component {
                     </div>
                   </div>
                   <div className='tab-pane fade' role='tabpanel' id='tab-3'>
-                    <div className='row'>
-                      <div className='col-lg-6 d-flex justify-content-around align-items-sm-center align-items-md-center align-items-lg-center align-items-xl-center align-items-xxl-center col-md-12 col-lg-6 p-4'>
-                        <span>Camera</span>
+                    <div className="row">
+                      <div className="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around align-items-center col-md-12 col-lg-6 p-4">
+                        <span>
+                          <strong>Camera</strong>
+                        </span>
                         <select id='camera' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, camera: elem.target.value } }))} value={this.state.selected.camera || ''}>
                           {
                             this.state.devices.cameras.map((camera) => (
@@ -561,10 +577,103 @@ class App extends React.Component {
                           }
                         </select>
                       </div>
-                      <div className='col d-flex justify-content-around justify-content-xl-center align-items-xl-center col-md-12 p-4' style={{ paddingTop: '12px' }}>
-                        <canvas id='canvas'></canvas>
+                      <div
+                        className="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around justify-content-xl-center align-items-xl-center col-md-12 col-lg-6 p-4"
+                        style={{ paddingTop: 12 }}
+                      >
+                        <canvas id='canvas' style={{ padding: 12 }}></canvas>
+                      </div>
+                      <div className="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around align-items-center col-md-12 col-lg-6 p-4">
+                        <span>
+                          <strong>Background</strong>
+                        </span>
+                        <div>
+                          <button
+                            className={`btn btn-sm text-center ${this.state.background.type === 'none' ? 'selected' : ''}`}
+                            type="button"
+                            style={{
+                              width: "7.5rem",
+                              height: "5rem",
+                              borderRadius: 20,
+                              color: "var(--bs-body-bg)",
+                              marginLeft: "0.33rem",
+                              marginRight: "0.33rem",
+                              paddingTop: 0,
+                              paddingBottom: 0,
+                              paddingRight: 0,
+                              paddingLeft: 0,
+                              border: "2px solid var(--bs-gray-500)"
+                            }}
+                            onClick={() => {
+                              this.setState((state) => ({ background: { ...state.background, type: 'none' } }));
+                            }}
+                          >
+                            <span className="text-center d-inline-flex justify-content-center align-items-center fa-stack fa-2x">
+                              <i
+                                className="far fa-circle fa-stack-1x"
+                                style={{ fontSize: "2.5rem", color: "var(--bs-gray-700)" }}
+                              />
+                              <i
+                                className="fas fa-slash fa-stack-2x"
+                                style={{ fontSize: "1.5rem", color: "var(--bs-gray-700)" }}
+                              />
+                            </span>
+                          </button>
+                          <button
+                            className={`btn btn-sm text-center ${this.state.background.type === 'blur' ? 'selected' : ''}`}
+                            type="button"
+                            style={{
+                              width: "7.5rem",
+                              height: "5rem",
+                              borderRadius: 20,
+                              color: "var(--bs-body-bg)",
+                              marginLeft: "0.33rem",
+                              marginRight: "0.33rem",
+                              paddingTop: 0,
+                              paddingBottom: 0,
+                              paddingRight: 0,
+                              paddingLeft: 0,
+                              border: "2px solid var(--bs-gray-500)"
+                            }}
+                            onClick={() => {
+                              this.setState((state) => ({ background: { ...state.background, type: 'blur' } }));
+                            }}
+                          >
+                            <span className="text-center d-inline-flex justify-content-center align-items-center fa-stack">
+                              <i
+                                className="material-icons"
+                                style={{ fontSize: "2.5rem", color: "var(--bs-gray-700)" }}
+                              >
+                                blur_on
+                              </i>
+                            </span>
+                          </button>
+                          <button
+                            className={`btn btn-sm text-center ${this.state.background.type === 'image' ? 'selected' : ''}`}
+                            type="button"
+                            style={{
+                              width: "7.5rem",
+                              height: "5rem",
+                              borderRadius: 20,
+                              color: "var(--bs-body-bg)",
+                              marginLeft: "0.33rem",
+                              marginRight: "0.33rem",
+                              paddingTop: 0,
+                              paddingBottom: 0,
+                              paddingRight: 0,
+                              paddingLeft: 0,
+                              border: "2px solid var(--bs-gray-500)"
+                            }}
+                            onClick={() => {
+                              this.setState((state) => ({ background: { ...state.background, type: 'image' } }));
+                            }}
+                          >
+                            Image
+                          </button>
+                        </div>
                       </div>
                     </div>
+
                   </div>
                 </div>
               </div>
