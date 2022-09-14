@@ -66,7 +66,7 @@ class App extends React.Component {
       devices: { microphones: [], cameras: [], speakers: [], },
       background: {
         type: localStorage.getItem('background'),
-        image: '',
+        media: '',
       }
     };
 
@@ -481,9 +481,8 @@ class App extends React.Component {
       this.refreshStream.bind(this)();
     }
 
-    if (this.state.background.type != localStorage.getItem('background') || this.state.background.image != localStorage.getItem('backgroundImage')) {
+    if (this.state.background.type != localStorage.getItem('background')) {
       localStorage.setItem('background', this.state.background.type);
-      localStorage.setItem('backgroundImage', this.state.background.image);
     }
 
     this.updateBackgroundConfig(this.state.background);
@@ -564,8 +563,8 @@ class App extends React.Component {
                     </div>
                   </div>
                   <div className='tab-pane fade' role='tabpanel' id='tab-3'>
-                    <div className="row">
-                      <div className="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around align-items-center col-md-12 col-lg-6 p-4">
+                    <div className='row'>
+                      <div className='col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around align-items-center col-md-12 col-lg-6 p-4'>
                         <span>
                           <strong>Camera</strong>
                         </span>
@@ -578,97 +577,131 @@ class App extends React.Component {
                         </select>
                       </div>
                       <div
-                        className="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around justify-content-xl-center align-items-xl-center col-md-12 col-lg-6 p-4"
+                        className='col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around justify-content-xl-center align-items-xl-center col-md-12 col-lg-6 p-4'
                         style={{ paddingTop: 12 }}
                       >
                         <canvas id='canvas' style={{ padding: 12 }}></canvas>
                       </div>
-                      <div className="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around align-items-center col-md-12 col-lg-6 p-4">
+                      <div className='col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 col-xxl-12 d-flex justify-content-around align-items-center col-md-12 col-lg-6 p-4'>
                         <span>
                           <strong>Background</strong>
                         </span>
                         <div>
                           <button
                             className={`btn btn-sm text-center ${this.state.background.type === 'none' ? 'selected' : ''}`}
-                            type="button"
+                            type='button'
                             style={{
-                              width: "7.5rem",
-                              height: "5rem",
+                              width: '7.5rem',
+                              height: '5rem',
                               borderRadius: 20,
-                              color: "var(--bs-body-bg)",
-                              marginLeft: "0.33rem",
-                              marginRight: "0.33rem",
+                              color: 'var(--bs-body-bg)',
+                              marginLeft: '0.33rem',
+                              marginRight: '0.33rem',
                               paddingTop: 0,
                               paddingBottom: 0,
                               paddingRight: 0,
                               paddingLeft: 0,
-                              border: "2px solid var(--bs-gray-500)"
+                              border: '2px solid var(--bs-gray-500)'
                             }}
                             onClick={() => {
                               this.setState((state) => ({ background: { ...state.background, type: 'none' } }));
                             }}
+                            data-bs-toggle='tooltip'
+                            title='No Background'
                           >
-                            <span className="text-center d-inline-flex justify-content-center align-items-center fa-stack fa-2x">
+                            <span className='text-center d-inline-flex justify-content-center align-items-center fa-stack fa-2x'>
                               <i
-                                className="far fa-circle fa-stack-1x"
-                                style={{ fontSize: "2.5rem", color: "var(--bs-gray-700)" }}
+                                className='far fa-circle fa-stack-1x'
+                                style={{ fontSize: '2.5rem', color: 'var(--bs-gray-700)' }}
                               />
                               <i
-                                className="fas fa-slash fa-stack-2x"
-                                style={{ fontSize: "1.5rem", color: "var(--bs-gray-700)" }}
+                                className='fas fa-slash fa-stack-2x'
+                                style={{ fontSize: '1.5rem', color: 'var(--bs-gray-700)' }}
                               />
                             </span>
                           </button>
                           <button
                             className={`btn btn-sm text-center ${this.state.background.type === 'blur' ? 'selected' : ''}`}
-                            type="button"
+                            type='button'
                             style={{
-                              width: "7.5rem",
-                              height: "5rem",
+                              width: '7.5rem',
+                              height: '5rem',
                               borderRadius: 20,
-                              color: "var(--bs-body-bg)",
-                              marginLeft: "0.33rem",
-                              marginRight: "0.33rem",
+                              color: 'var(--bs-body-bg)',
+                              marginLeft: '0.33rem',
+                              marginRight: '0.33rem',
                               paddingTop: 0,
                               paddingBottom: 0,
                               paddingRight: 0,
                               paddingLeft: 0,
-                              border: "2px solid var(--bs-gray-500)"
+                              border: '2px solid var(--bs-gray-500)'
                             }}
                             onClick={() => {
                               this.setState((state) => ({ background: { ...state.background, type: 'blur' } }));
                             }}
+                            data-bs-toggle='tooltip'
+                            title='Blur Background'
                           >
-                            <span className="text-center d-inline-flex justify-content-center align-items-center fa-stack">
+                            <span className='text-center d-inline-flex justify-content-center align-items-center fa-stack'>
                               <i
-                                className="material-icons"
-                                style={{ fontSize: "2.5rem", color: "var(--bs-gray-700)" }}
+                                className='material-icons'
+                                style={{ fontSize: '2.5rem', color: 'var(--bs-gray-700)' }}
                               >
                                 blur_on
                               </i>
                             </span>
                           </button>
                           <button
-                            className={`btn btn-sm text-center ${this.state.background.type === 'image' ? 'selected' : ''}`}
-                            type="button"
+                            className={`btn btn-sm text-center ${this.state.background.type === 'media' ? 'selected' : ''}`}
+                            type='button'
                             style={{
-                              width: "7.5rem",
-                              height: "5rem",
+                              width: '7.5rem',
+                              height: '5rem',
                               borderRadius: 20,
-                              color: "var(--bs-body-bg)",
-                              marginLeft: "0.33rem",
-                              marginRight: "0.33rem",
+                              color: 'var(--bs-body-bg)',
+                              marginLeft: '0.33rem',
+                              marginRight: '0.33rem',
                               paddingTop: 0,
                               paddingBottom: 0,
                               paddingRight: 0,
                               paddingLeft: 0,
-                              border: "2px solid var(--bs-gray-500)"
+                              border: '2px solid var(--bs-gray-500)'
                             }}
-                            onClick={() => {
-                              this.setState((state) => ({ background: { ...state.background, type: 'image' } }));
-                            }}
+                            data-bs-toggle='tooltip'
+                            title='Upload Background'
                           >
-                            Image
+                            <span className='text-center d-inline-flex justify-content-center align-items-center fa-stack'>
+                              <i
+                                className='fas fa-photo-video'
+                                style={{ fontSize: '2rem', color: 'var(--bs-gray-700)' }}
+                              >
+                              </i>
+                            </span>
+                          </button>
+                          <button
+                            className={`btn btn-sm text-center ${this.state.background.type === 'media' ? 'selected' : ''}`}
+                            type='button'
+                            style={{
+                              width: '7.5rem',
+                              height: '5rem',
+                              borderRadius: 20,
+                              color: 'var(--bs-body-bg)',
+                              marginLeft: '0.33rem',
+                              marginRight: '0.33rem',
+                              paddingTop: 0,
+                              paddingBottom: 0,
+                              paddingRight: 0,
+                              paddingLeft: 0,
+                              border: '2px solid var(--bs-gray-500)'
+                            }}
+                            id='studio'
+                            onClick={() => {
+                              this.setState((state) => ({ background: { ...state.background, type: 'media' } }));
+                            }}
+                            data-bs-toggle='tooltip'
+                            title='Media Background'
+                          >
+                            Media
                           </button>
                         </div>
                       </div>

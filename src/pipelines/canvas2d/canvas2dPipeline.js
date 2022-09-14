@@ -63,7 +63,7 @@ export function buildCanvas2dPipeline(sourcePlayback, backgroundConfig, segmenta
             if (backgroundConfig.type === 'blur') {
                 ctx.filter = 'blur(8px)'; // FIXME Does not work on Safari
             }
-            else if (backgroundConfig.type === 'image') {
+            else if (backgroundConfig.type === 'media') {
                 ctx.filter = 'blur(4px)'; // FIXME Does not work on Safari
             }
         }
@@ -75,6 +75,8 @@ export function buildCanvas2dPipeline(sourcePlayback, backgroundConfig, segmenta
         ctx.drawImage(sourcePlayback.htmlElement, 0, 0);
         if (backgroundConfig.type === 'blur') {
             blurBackground();
+        } else if (backgroundConfig.type === 'media') {
+            drawBackground();
         }
     }
     function drawSegmentationMask() {
@@ -85,5 +87,11 @@ export function buildCanvas2dPipeline(sourcePlayback, backgroundConfig, segmenta
         ctx.filter = 'blur(8px)'; // FIXME Does not work on Safari
         ctx.drawImage(sourcePlayback.htmlElement, 0, 0);
     }
+    function drawBackground() {
+        if (!backgroundConfig.media) return;
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.drawImage(backgroundConfig.media, 0, 0, sourcePlayback.width, sourcePlayback.height);
+    }
+
     return { render, updatePostProcessingConfig, updateBackgroundConfig, cleanUp };
 }
