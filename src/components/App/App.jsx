@@ -8,6 +8,7 @@ import { supabase } from '../../supabaseClient.js';
 import Main from '../Main/Main';
 import Signin from '../Signin/Signin';
 import Signup from '../Signup/Signup.jsx';
+import Profile from '../Profile/Profile.jsx';
 import Navbar from '../Navbar/Navbar';
 import Error404 from '../404/404.jsx';
 import Test from '../Test/Test.jsx';
@@ -48,6 +49,12 @@ class App extends React.Component {
                         </>
                     }
                     />
+                    <Route path="/profile" element={
+                        <>
+                            <Navbar session={this.state.session} />
+                            <Profile session={this.state.session} />
+                        </>
+                    } />
                     <Route path='/signin' element={
                         <>
                             <Navbar session={this.state.session} />

@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom/client';
 import { useParams, Navigate } from 'react-router-dom';
 import Menu from '../Menu/Menu';
 import Media from '../Media/Media';
@@ -67,9 +68,12 @@ class App extends React.Component {
       background: {
         type: localStorage.getItem('background'),
         media: '',
+        mediaType: localStorage.getItem('backgroundMediaType'),
+        id: localStorage.getItem('backgroundId'),
       }
     };
 
+    {
     this.renderRequestId = null;
     this.canvasRender = async () => { }
     this.updatePostProcessingConfig = () => { };
@@ -78,7 +82,28 @@ class App extends React.Component {
     this.canvas = document.createElement('canvas');
     this.video = document.createElement('video');
 
-    {
+      const indexedDB = window.indexedDB.open('backgrounds', 1);
+      this.indexedDB = null;
+
+      this.backgrounds = [];
+      this.media = null;
+
+      this.root = null;
+
+      indexedDB.onsuccess = () => {
+        this.indexedDB = indexedDB.result;
+        if (this.indexedDB.objectStoreNames.contains('backgrounds')) {
+          this.indexedDB.transaction('backgrounds', 'readwrite').objectStore('backgrounds');
+        }
+      }
+
+      indexedDB.onupgradeneeded = () => {
+        this.indexedDB = indexedDB.result;
+        if (!this.indexedDB.objectStoreNames.contains('backgrounds')) {
+          this.indexedDB.createObjectStore('backgrounds', { keyPath: 'id' }).createIndex('type', 'type', { unique: false });
+        }
+      }
+
       this.comms = new EventEmitter();
 
       this.comms.on('dataRequest', (id) => {
@@ -96,62 +121,6 @@ class App extends React.Component {
       });
 
       document.title = this.state.meeting.name;
-
-      this.socket = io(SIGNALING_SERVER);
-      this.socket.on('connect', async () => {
-        this.socket.emit('auth', props.session.access_token);
-        this.socket.on('ok', () => {
-          if (DEBUG) console.log('Connected to Signaling Server');
-          this.state.media.push({
-            id: 'local',
-            type: 'local',
-            connection: null,
-            data: { name: `${supabase.auth.user().user_metadata.username} (Me)`, clientMute: false, clientVideoHide: false, peerMute: false, peerVideoHide: false, position: 0 },
-            stream: this.state.stream,
-            sender: [null, null]
-          });
-
-          this.setState({
-            message: 'Loading devices...',
-          });
-
-          this.onConnection.bind(this)();
-        })
-      });
-
-
-      const intervals = {};
-
-      setInterval(() => {
-        this.state.peers.forEach((peer) => {
-          const id = peer.id;
-          const receiver = peer.connection.getReceivers().find((r) => r.track.kind == 'audio');
-
-          if (receiver && receiver.getSynchronizationSources) {
-            const source = receiver.getSynchronizationSources()[0];
-            if (source?.audioLevel > AUDIO_THRESHOLD) {
-              this.comms.emit('voiceActivity', id, true);
-
-              const func = () => {
-                const newSource = receiver.getSynchronizationSources()[0];
-                if (newSource?.audioLevel <= 0.01) {
-                  this.comms.emit('voiceActivity', id, false);
-
-                  clearInterval(intervals[id]);
-                  intervals[id] = null;
-                }
-              };
-
-              if (!intervals) {
-                intervals[id] = setInterval(func, 2000);
-              } else {
-                clearInterval(intervals[id]);
-                intervals[id] = setInterval(func, 2000);
-              }
-            }
-          }
-        });
-      }, 100);
     }
   }
 
@@ -438,6 +407,7 @@ class App extends React.Component {
     const video = document.createElement('video');
     video.srcObject = this.state.localStream;
     video.classList.add('d-none');
+    video.muted = true;
     document.body.appendChild(video);
 
     video.play();
@@ -467,12 +437,127 @@ class App extends React.Component {
     this.renderBg.bind(this)();
   }
 
-  async componentDidMount() {
-    await this.refreshDevices.bind(this)();
-    await this.canvasPipeline.bind(this)();
+  async setBackground() {
+    const file = document.getElementById('bg-upload').files[0];
+
+    if (file.type == 'image/png' || file.type == 'image/jpeg' || file.type == 'video/mp4') {
+      const data = await new Promise((res) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          res(e.target.result);
+        }
+        reader.readAsDataURL(file);
+      })
+
+      const transaction = this.indexedDB.transaction('backgrounds', 'readwrite');
+      const request = transaction.objectStore('backgrounds').put({ value: data, id: Math.floor(Math.random() * Date.now()).toString(16), type: file.type.split('/')[0] });
+
+      request.onsuccess = () => {
+        this.setState();
+      }
+    } else {
+      alert('Invalid file type.\nPlease upload a PNG, JPEG or MP4 file.');
+    }
   }
 
-  componentDidUpdate() {
+  async updateBackground(data) {
+    if (this.state.background.type == 'media' && this.state.background.id && this.state.background.mediaType) {
+      if (this.media) document.body.removeChild(this.media);
+
+      this.media = document.createElement(this.state.background.mediaType === 'video' ? 'video' : 'img');
+
+      const { width, height } = this.state.localStream.getVideoTracks()[0]?.getSettings() || { width: 640, height: 360 };
+
+      this.media.classList.add('d-none');
+      this.media.src = data.find((elem) => elem.id == this.state.background.id).value;
+
+      this.media.width = width;
+      this.media.height = height;
+
+      if (this.media.muted) this.media.muted = true;
+      if (this.media.play) this.media.play();
+
+      document.body.appendChild(this.media);
+
+      this.updateBackgroundConfig({
+        type: this.state.background.type,
+        htmlElement: this.media,
+      });
+    } else {
+      this.updateBackgroundConfig(this.state.background);
+    }
+  }
+
+  async componentDidMount() {
+    {
+      this.socket = io(SIGNALING_SERVER);
+      this.socket.on('connect', async () => {
+        this.socket.emit('auth', this.props.session.access_token);
+        this.socket.on('ok', () => {
+          if (DEBUG) console.log('Connected to Signaling Server');
+          this.state.media.push({
+            id: 'local',
+            type: 'local',
+            connection: null,
+            data: { name: `${supabase.auth.user().user_metadata.username} (Me)`, clientMute: false, clientVideoHide: false, peerMute: false, peerVideoHide: false, position: 0 },
+            stream: this.state.stream,
+            sender: [null, null]
+          });
+
+          this.setState({
+            message: 'Loading devices...',
+          });
+
+          this.onConnection.bind(this)();
+        })
+      });
+
+
+      const intervals = {};
+
+      setInterval(() => {
+        this.state.peers.forEach((peer) => {
+          const id = peer.id;
+          const receiver = peer.connection.getReceivers().find((r) => r.track.kind == 'audio');
+
+          if (receiver && receiver.getSynchronizationSources) {
+            const source = receiver.getSynchronizationSources()[0];
+            if (source?.audioLevel > AUDIO_THRESHOLD) {
+              this.comms.emit('voiceActivity', id, true);
+
+              const func = () => {
+                const newSource = receiver.getSynchronizationSources()[0];
+                if (newSource?.audioLevel <= 0.01) {
+                  this.comms.emit('voiceActivity', id, false);
+
+                  clearInterval(intervals[id]);
+                  intervals[id] = null;
+                }
+              };
+
+              if (!intervals) {
+                intervals[id] = setInterval(func, 2000);
+              } else {
+                clearInterval(intervals[id]);
+                intervals[id] = setInterval(func, 2000);
+              }
+            }
+          }
+        });
+      }, 100);
+    }
+
+    this.root = ReactDOM.createRoot(document.getElementById('backgrounds'));
+
+    await this.refreshDevices.bind(this)();
+    await this.canvasPipeline.bind(this)();
+
+    const data = await new Promise((res) => this.indexedDB ? this.indexedDB.transaction('backgrounds', 'readonly').objectStore('backgrounds').getAll().onsuccess = (e) => res(e.target.result) : res([]));
+
+    this.updateBackground.bind(this)(data);
+  }
+
+  async componentDidUpdate() {
     if (this.state.selected.camera != localStorage.getItem('camera') || this.state.selected.microphone != localStorage.getItem('microphone') || this.state.selected.speaker != localStorage.getItem('speaker')) {
       localStorage.setItem('microphone', this.state.selected.microphone);
       localStorage.setItem('camera', this.state.selected.camera);
@@ -481,11 +566,56 @@ class App extends React.Component {
       this.refreshStream.bind(this)();
     }
 
-    if (this.state.background.type != localStorage.getItem('background')) {
-      localStorage.setItem('background', this.state.background.type);
-    }
+    const data = await new Promise((res) => this.indexedDB ? this.indexedDB.transaction('backgrounds', 'readonly').objectStore('backgrounds').getAll().onsuccess = (e) => res(e.target.result) : res([]));
 
-    this.updateBackgroundConfig(this.state.background);
+    this.backgrounds = data;
+
+    this.root.render(
+      <>
+        {
+          data.map((bg) => (
+            <button
+              key={bg.id}
+              className={`btn btn-sm text-center d-inline-flex justify-content-end ${this.state.background.type === 'media' && this.state.background.id === bg.id ? 'selected' : ''}`}
+              type='button'
+              style={{
+                width: '7.5rem',
+                height: '5rem',
+                borderRadius: 20,
+                color: 'var(--bs-body-bg)',
+                marginLeft: '0.33rem',
+                marginRight: '0.33rem',
+                paddingTop: 0,
+                paddingBottom: 0,
+                paddingRight: 0,
+                paddingLeft: 0,
+                border: '2px solid var(--bs-gray-500)',
+                backgroundImage: `url(${bg.type === 'image' ? bg.value : ''})`,
+                backgroundSize: 'cover'
+              }}
+              id='studio'
+              onClick={() => {
+                this.setState((state) => ({ background: { ...state.background, type: 'media', id: bg.id, mediaType: bg.type } }));
+              }}
+              data-bs-toggle='tooltip'
+              title='Media Background'
+            >
+              <span className='mt-1 me-2' data-bs-toggle='tooltip' data-bss-tooltip='' title='Delete' style={{ border: 'none' }}>
+                <i className='fas fa-trash-alt'></i>
+              </span>
+            </button>
+          ))
+        }
+      </>
+    );
+
+    this.updateBackground.bind(this)(data);
+
+    if (this.state.background.type != localStorage.getItem('background') || this.state.background.id != localStorage.getItem('backgroundId') && this.state.background.mediaType != localStorage.getItem('backgroundMediaType')) {
+      localStorage.setItem('background', this.state.background.type);
+      localStorage.setItem('backgroundId', this.state.background.id);
+      localStorage.setItem('backgroundMediaType', this.state.background.mediaType);
+    }
   }
 
   componentWillUnmount() {
@@ -540,8 +670,8 @@ class App extends React.Component {
                   </div>
                   <div className='tab-pane fade' role='tabpanel' id='tab-2'>
                     <div className='row'>
-                      <div className='col d-flex justify-content-around col-12 p-4'>
-                        <strong>Speaker</strong>
+                      <div className='col d-md-flex d-sm-block justify-content-around col-12 p-4'>
+                        <strong>Speaker&nbsp;&nbsp;</strong>
                         <select id='speaker' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, speaker: elem.target.value } }))} value={this.state.selected.speaker || ''}>
                           {
                             this.state.devices.speakers.map((speaker) => (
@@ -550,8 +680,8 @@ class App extends React.Component {
                           }
                         </select>
                       </div>
-                      <div className='col d-flex justify-content-around col-12 p-4'>
-                        <strong>Microphone</strong>
+                      <div className='col d-md-flex d-sm-block justify-content-around col-12 p-4'>
+                        <strong>Microphone&nbsp;&nbsp;</strong>
                         <select id='microphone' className='form-select-sm' onChange={(elem) => this.setState((state) => ({ selected: { ...state.selected, microphone: elem.target.value } }))} value={this.state.selected.microphone || ''}>
                           {
                             this.state.devices.microphones.map((microphone) => (
@@ -595,8 +725,7 @@ class App extends React.Component {
                               height: '5rem',
                               borderRadius: 20,
                               color: 'var(--bs-body-bg)',
-                              marginLeft: '0.33rem',
-                              marginRight: '0.33rem',
+                              margin: '0.33rem',
                               paddingTop: 0,
                               paddingBottom: 0,
                               paddingRight: 0,
@@ -628,8 +757,7 @@ class App extends React.Component {
                               height: '5rem',
                               borderRadius: 20,
                               color: 'var(--bs-body-bg)',
-                              marginLeft: '0.33rem',
-                              marginRight: '0.33rem',
+                              margin: '0.33rem',
                               paddingTop: 0,
                               paddingBottom: 0,
                               paddingRight: 0,
@@ -651,16 +779,16 @@ class App extends React.Component {
                               </i>
                             </span>
                           </button>
+                          <input className='d-none' type='file' name='' id='bg-upload' accept='video/*,image/*' onChange={(e) => this.setBackground.bind(this)(e)} />
                           <button
-                            className={`btn btn-sm text-center ${this.state.background.type === 'media' ? 'selected' : ''}`}
+                            className={'btn btn-sm text-center'}
                             type='button'
                             style={{
                               width: '7.5rem',
                               height: '5rem',
                               borderRadius: 20,
                               color: 'var(--bs-body-bg)',
-                              marginLeft: '0.33rem',
-                              marginRight: '0.33rem',
+                              margin: '0.33rem',
                               paddingTop: 0,
                               paddingBottom: 0,
                               paddingRight: 0,
@@ -669,6 +797,10 @@ class App extends React.Component {
                             }}
                             data-bs-toggle='tooltip'
                             title='Upload Background'
+
+                            onClick={() => {
+                              document.getElementById('bg-upload').click();
+                            }}
                           >
                             <span className='text-center d-inline-flex justify-content-center align-items-center fa-stack'>
                               <i
@@ -678,35 +810,11 @@ class App extends React.Component {
                               </i>
                             </span>
                           </button>
-                          <button
-                            className={`btn btn-sm text-center ${this.state.background.type === 'media' ? 'selected' : ''}`}
-                            type='button'
-                            style={{
-                              width: '7.5rem',
-                              height: '5rem',
-                              borderRadius: 20,
-                              color: 'var(--bs-body-bg)',
-                              marginLeft: '0.33rem',
-                              marginRight: '0.33rem',
-                              paddingTop: 0,
-                              paddingBottom: 0,
-                              paddingRight: 0,
-                              paddingLeft: 0,
-                              border: '2px solid var(--bs-gray-500)'
-                            }}
-                            id='studio'
-                            onClick={() => {
-                              this.setState((state) => ({ background: { ...state.background, type: 'media' } }));
-                            }}
-                            data-bs-toggle='tooltip'
-                            title='Media Background'
-                          >
-                            Media
-                          </button>
+                          <div style={{ display: 'inline' }} id='backgrounds'>
+                          </div>
                         </div>
                       </div>
                     </div>
-
                   </div>
                 </div>
               </div>

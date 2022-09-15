@@ -88,9 +88,9 @@ export function buildCanvas2dPipeline(sourcePlayback, backgroundConfig, segmenta
         ctx.drawImage(sourcePlayback.htmlElement, 0, 0);
     }
     function drawBackground() {
-        if (!backgroundConfig.media) return;
+        if (!backgroundConfig.htmlElement) return;
         ctx.globalCompositeOperation = 'destination-over';
-        ctx.drawImage(backgroundConfig.media, 0, 0, sourcePlayback.width, sourcePlayback.height);
+        ctx.drawImage(backgroundConfig.htmlElement, 0, 0, sourcePlayback.width, sourcePlayback.height);
     }
 
     return { render, updatePostProcessingConfig, updateBackgroundConfig, cleanUp };
