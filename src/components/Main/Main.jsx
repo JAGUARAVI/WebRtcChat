@@ -476,6 +476,7 @@ class App extends React.Component {
 
       if (this.media.muted) this.media.muted = true;
       if (this.media.play) this.media.play();
+      if (this.media.loop) this.media.loop = true;
 
       document.body.appendChild(this.media);
 
