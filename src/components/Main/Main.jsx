@@ -89,6 +89,7 @@ class App extends React.Component {
       this.media = null;
 
       this.root = null;
+      this.ready = false;
 
       indexedDB.onsuccess = () => {
         this.indexedDB = indexedDB.result;
@@ -129,6 +130,10 @@ class App extends React.Component {
 
     let ready = this.state.stream.getVideoTracks().length > 0;
     while (!ready) {
+      if (this.ready) {
+        ready = true;
+        continue;
+      }
       await new Promise((resolve) => setTimeout(resolve, 10))
       ready = this.state.stream.getVideoTracks().length > 0;
     }
@@ -319,6 +324,7 @@ class App extends React.Component {
     })).catch((err) => {
       console.log('Access denied for audio/video');
       console.log('Starting with empty stream...');
+      this.ready = true;
       return new MediaStream();
     });
 
@@ -402,7 +408,7 @@ class App extends React.Component {
   async canvasPipeline() {
     const [tflite] = await getTfLite();
 
-    const { height, width } = this.state.localStream.getVideoTracks()[0]?.getSettings();
+    const { height, width } = this.state.localStream.getVideoTracks()[0]?.getSettings() || { width: 640, height: 360 };
 
     const video = document.createElement('video');
     video.srcObject = this.state.localStream;
@@ -452,9 +458,9 @@ class App extends React.Component {
       const transaction = this.indexedDB.transaction('backgrounds', 'readwrite');
       const request = transaction.objectStore('backgrounds').put({ value: data, id: Math.floor(Math.random() * Date.now()).toString(16), type: file.type.split('/')[0] });
 
-      request.onsuccess = () => {
-        this.setState();
-      }
+      request.onsuccess = (() => {
+        this.setState({});
+      }).bind(this);
     } else {
       alert('Invalid file type.\nPlease upload a PNG, JPEG or MP4 file.');
     }

@@ -20,7 +20,7 @@ function Test(params) {
 
         getTfLite('160x96').then(async ([tflite, simd]) => {
             const stream = await promise;
-            const { width, height } = stream.getVideoTracks()[0].getSettings();
+            const { width, height } = stream.getVideoTracks()[0].getSettings() || { width: 640, height: 360 };
 
             const video = document.getElementById('video');
             video.srcObject = stream;
