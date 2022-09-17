@@ -165,6 +165,7 @@ class Media extends React.Component {
                                 data-bs-toggle='dropdown'
                                 data-bs-auto-close='outside'
                                 type='button'
+                                name='view-options'
                             >
                                 <svg
                                     xmlns='http://www.w3.org/2000/svg'
