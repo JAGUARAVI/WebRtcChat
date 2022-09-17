@@ -66,10 +66,10 @@ class App extends React.Component {
       },
       devices: { microphones: [], cameras: [], speakers: [], },
       background: {
-        type: localStorage.getItem('background'),
+        type: localStorage.getItem('background') || 'none',
         media: '',
-        mediaType: localStorage.getItem('backgroundMediaType'),
-        id: localStorage.getItem('backgroundId'),
+        mediaType: localStorage.getItem('backgroundMediaType') || '',
+        id: localStorage.getItem('backgroundId') || '',
       }
     };
 
@@ -360,7 +360,7 @@ class App extends React.Component {
     })
   }
 
-  getDevices() {
+  async getDevices() {
     return new Promise(async (res, rej) => {
       await this.refreshStream();
 
@@ -411,6 +411,7 @@ class App extends React.Component {
     const { height, width } = this.state.localStream.getVideoTracks()[0]?.getSettings() || { width: 640, height: 360 };
 
     const video = document.createElement('video');
+    video.id = 'psuedo-video';
     video.srcObject = this.state.localStream;
     video.classList.add('d-none');
     video.muted = true;
@@ -628,6 +629,8 @@ class App extends React.Component {
   componentWillUnmount() {
     cancelAnimationFrame(this.renderRequestId);
     this.socket.close();
+    document.body.removeChild(this.media);
+    document.body.removeChild(document.getElementById('psuedo-video'));
   }
 
   render() {
@@ -860,9 +863,6 @@ class App extends React.Component {
           </div>
         </section>
         {Settings}
-        {
-
-        }
         <Menu comms={this.comms} />
       </>
     ) : (

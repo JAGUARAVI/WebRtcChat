@@ -46,6 +46,7 @@ class Navbar extends React.Component {
                                         >
                                             <img
                                                 id="avatar"
+                                                alt="avatar"
                                                 className="rounded-circle img-profile"
                                                 src={avatar}
                                                 style={{ aspectRatio: 1, maxHeight: "3rem", border: "none" }}
