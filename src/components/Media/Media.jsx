@@ -73,7 +73,7 @@ class Media extends React.Component {
 
     render() {
         return (
-            <div className='col p-0' id={`${this.id}-data`} style={{
+            <div className='col p-0 m-2' id={`${this.id}-data`} style={{
                 userSelect: 'none',
             }} >
                 <div className='panel h-100 w-100 '>

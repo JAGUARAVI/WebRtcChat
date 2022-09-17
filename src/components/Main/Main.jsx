@@ -16,7 +16,7 @@ const withParams = (props) => {
   return props => <App {...props} params={useParams()} />;
 }
 
-const SIGNALING_SERVER = 'https://videovoicechat.jaguaravi.repl.co';
+const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; //'https://videovoicechat.jaguaravi.repl.co';
 
 const CONSTRAINS = {
   audio: {
@@ -67,8 +67,7 @@ class App extends React.Component {
       devices: { microphones: [], cameras: [], speakers: [], },
       background: {
         type: localStorage.getItem('background') || 'none',
-        media: '',
-        mediaType: localStorage.getItem('backgroundMediaType') || '',
+        media: localStorage.getItem('backgroundmedia') || '',
         id: localStorage.getItem('backgroundId') || '',
       }
     };
@@ -143,7 +142,7 @@ class App extends React.Component {
       userdata: {
         name: supabase.auth.user().user_metadata.username || supabase.auth.user().email.toString().split('@')[0],
         id: supabase.auth.user().id,
-        avatar: supabase.auth.user().user_metadata.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png',
+        avatar: supabase.auth.user().user_metadata.avatar || 'https://evgfqjmxchvntepiwsfj.supabase.co/storage/v1/object/public/avatars/default.png',
       }
     };
     this.socket.emit('join', data);
@@ -467,11 +466,20 @@ class App extends React.Component {
     }
   }
 
+  async deleteBackground(id) {
+    const transaction = this.indexedDB.transaction('backgrounds', 'readwrite');
+    const request = transaction.objectStore('backgrounds').delete(id);
+
+    request.onsuccess = (() => {
+      this.setState(this.state.background.type === 'media' && this.state.background.id === id ? { background: { type: 'none' } } : {});
+    }).bind(this);
+  }
+
   async updateBackground(data) {
-    if (this.state.background.type == 'media' && this.state.background.id && this.state.background.mediaType) {
+    if (this.state.background.type == 'media' && this.state.background.id && this.state.background.media) {
       if (this.media) document.body.removeChild(this.media);
 
-      this.media = document.createElement(this.state.background.mediaType === 'video' ? 'video' : 'img');
+      this.media = document.createElement(this.state.background.media === 'video' ? 'video' : 'img');
 
       const { width, height } = this.state.localStream.getVideoTracks()[0]?.getSettings() || { width: 640, height: 360 };
 
@@ -481,9 +489,9 @@ class App extends React.Component {
       this.media.width = width;
       this.media.height = height;
 
-      if (this.media.muted) this.media.muted = true;
+      this.media.loop = true;
+      this.media.muted = true;
       if (this.media.play) this.media.play();
-      if (this.media.loop) this.media.loop = true;
 
       document.body.appendChild(this.media);
 
@@ -603,13 +611,13 @@ class App extends React.Component {
               }}
               id='studio'
               onClick={() => {
-                this.setState((state) => ({ background: { ...state.background, type: 'media', id: bg.id, mediaType: bg.type } }));
+                this.setState((state) => ({ background: { ...state.background, type: 'media', id: bg.id, media: bg.type } }));
               }}
               data-bs-toggle='tooltip'
               title='Media Background'
             >
-              <span className='mt-1 me-2' data-bs-toggle='tooltip' data-bss-tooltip='' title='Delete' style={{ border: 'none' }}>
-                <i className='fas fa-trash-alt'></i>
+              <span className='mt-1 me-2' data-bs-toggle='tooltip' data-bss-tooltip='' title='Delete' style={{ border: 'none' }} onClick={() => this.deleteBackground.bind(this)(bg.id)}>
+                <i style={{ mixBlendMode: 'difference', color: 'white' }} className='fas fa-trash-alt'></i>
               </span>
             </button>
           ))
@@ -619,10 +627,10 @@ class App extends React.Component {
 
     this.updateBackground.bind(this)(data);
 
-    if (this.state.background.type != localStorage.getItem('background') || this.state.background.id != localStorage.getItem('backgroundId') && this.state.background.mediaType != localStorage.getItem('backgroundMediaType')) {
+    if (this.state.background.type != localStorage.getItem('background') || this.state.background.id != localStorage.getItem('backgroundId') && this.state.background.media != localStorage.getItem('backgroundmedia')) {
       localStorage.setItem('background', this.state.background.type);
       localStorage.setItem('backgroundId', this.state.background.id);
-      localStorage.setItem('backgroundMediaType', this.state.background.mediaType);
+      localStorage.setItem('backgroundmedia', this.state.background.media);
     }
   }
 
