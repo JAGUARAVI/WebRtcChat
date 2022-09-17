@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../supabaseClient.js';
+import './Navbar.css';
 
 class Navbar extends React.Component {
     render() {
@@ -21,10 +22,8 @@ class Navbar extends React.Component {
             <nav className='navbar navbar-dark navbar-expand-md fixed-top navbar-shrink py-3' id='mainNav'>
                 <div className='container'>
                     <a className='navbar-brand d-flex align-items-center' href='/'>
-                        <span className='bs-icon-md bs-icon-circle bs-icon-white text-primary shadow d-flex justify-content-center align-items-center me-2 bs-icon'>
-                            <svg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' fill='currentColor' viewBox='0 0 16 16' className='bi bi-chat-fill'>
-                                <path d='M8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6-.097 1.016-.417 2.13-.771 2.966-.079.186.074.394.273.362 2.256-.37 3.597-.938 4.18-1.234A9.06 9.06 0 0 0 8 15z' />
-                            </svg>
+                        <span className='bs-icon-xl bs-icon-circle bs-icon-black text-primary d-flex justify-content-center align-items-center me-2 bs-icon'>
+                            <img style={{ height: '3rem', width: '3rem' }} src='/JaguarChat.svg' />
                         </span>
                         <span>Jaguar Chat</span>
                     </a>

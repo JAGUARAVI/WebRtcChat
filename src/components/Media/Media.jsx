@@ -165,7 +165,7 @@ class Media extends React.Component {
                                 data-bs-toggle='dropdown'
                                 data-bs-auto-close='outside'
                                 type='button'
-                                name='view-options'
+                                aria-label="View More Options"
                             >
                                 <svg
                                     xmlns='http://www.w3.org/2000/svg'
@@ -180,7 +180,7 @@ class Media extends React.Component {
                                 </svg>
                             </button>
                             <div className='dropdown-menu dropdown-menu-end dropdown-menu-dark'>
-                                <a
+                                <span
                                     id={this.id}
                                     className='dropdown-item d-inline-flex justify-content-around align-items-xl-center'
                                     onClick={this.toggleMute.bind(this)}
@@ -211,8 +211,8 @@ class Media extends React.Component {
                                         </svg>)
                                     }
                                     <span id={`${this.id}-mute`}>{this.state.muted ? 'Unmute' : 'Mute'}</span>
-                                </a>
-                                <a
+                                </span>
+                                <span
                                     id={this.id}
                                     className='dropdown-item d-inline-flex justify-content-around align-items-xl-center'
                                     onClick={this.toggleVideo.bind(this)}
@@ -247,8 +247,8 @@ class Media extends React.Component {
                                         </svg>)
                                     }
                                     <span id={`${this.id}-hide`}>{this.state.videoDisabled ? 'Show Video' : 'Hide Video'}</span>
-                                </a>
-                                <a className='dropdown-item d-xl-flex align-items-xl-center'>
+                                </span>
+                                <span className='dropdown-item d-xl-flex align-items-xl-center'>
                                     <input
                                         id={`${this.id}-volume`}
                                         className='form-range'
@@ -259,7 +259,7 @@ class Media extends React.Component {
                                         style={{ userSelect: 'none' }}
                                         step={5}
                                     />
-                                </a>
+                                </span>
                             </div>
                         </div>
                     </div>
