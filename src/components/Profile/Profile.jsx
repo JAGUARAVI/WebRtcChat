@@ -216,7 +216,6 @@ class Profile extends React.Component {
                                 </div>
                                 <div className="modal-body">
                                     <p>Upload your new Avatar</p>
-
                                     <input
                                         id="avatarUpload"
                                         className="form-control"

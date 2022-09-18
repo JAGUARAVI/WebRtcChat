@@ -55,6 +55,7 @@ class App extends React.Component {
                             <Profile session={this.state.session} />
                         </>
                     } />
+
                     <Route path='/signin' element={
                         <>
                             <Navbar session={this.state.session} />
