@@ -53,7 +53,15 @@ class Profile extends React.Component {
         event.preventDefault();
 
         const selectedFile = document.getElementById('avatarUpload').files[0];
-        console.log(selectedFile);
+
+        document.getElementById('closeModal').click();
+
+        if (!selectedFile.type.startsWith('image/')) {
+            return this.setState({
+                message: 'File is not an image.\nOnly images are allowed.',
+                type: 'danger'
+            });
+        }
 
         if (selectedFile.size > 1500000) {
             alert(`Max file size is 1.5MB! Your file is of ${(selectedFile.size / 1000000).toFixed(2)}MB.`);
@@ -68,8 +76,6 @@ class Profile extends React.Component {
                 cacheControl: '3600',
                 upsert: true,
             });
-
-        console.log(data, error);
 
         if (error) this.setState({
             message: error.message,
@@ -199,18 +205,17 @@ class Profile extends React.Component {
                     >
                         <div className="modal-content">
                             <form id="avatarForm" onSubmit={this.handleAvatar.bind(this)} encType="multipart/form-data">
-                            <div className="modal-header">
-                                <h4 className="modal-title">Change Avatar</h4>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                />
-                            </div>
-                            <div className="modal-body">
-                                <p>Upload your new Avatar</p>
-
+                                <div className="modal-header">
+                                    <h4 className="modal-title">Change Avatar</h4>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Close"
+                                    />
+                                </div>
+                                <div className="modal-body">
+                                    <p>Upload your new Avatar</p>
                                     <input
                                         id="avatarUpload"
                                         className="form-control"
@@ -222,18 +227,19 @@ class Profile extends React.Component {
                                         name="avatar"
                                         title="Max File SIze: 1MB"
                                     />
-                            </div>
-                            <div className="modal-footer">
-                                <button
-                                    className="btn btn-light"
-                                    type="button"
-                                    data-bs-dismiss="modal"
-                                >
-                                    Cancel
-                                </button>
+                                </div>
+                                <div className="modal-footer">
+                                    <button
+                                        className="btn btn-light"
+                                        type="button"
+                                        data-bs-dismiss="modal"
+                                        id="closeModal"
+                                    >
+                                        Cancel
+                                    </button>
                                     <button className="btn btn-outline-primary" type="submit">
-                                    Save
-                                </button>
+                                        Save
+                                    </button>
                                 </div>
                             </form>
                         </div>
