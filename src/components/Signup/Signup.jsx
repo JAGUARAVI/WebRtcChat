@@ -12,11 +12,13 @@ class Signup extends React.Component {
         this.state = {
             error: '',
             success: 0,
+            loading: false
         };
     }
 
     handleSubmit(event) {
         event.preventDefault();
+        this.setState({ loading: true });
 
         const username = document.getElementById('username').value;
         const email = document.getElementById('email').value;
@@ -41,6 +43,8 @@ class Signup extends React.Component {
             }
         }).catch((error) => {
             this.setState({ error: error.message });
+        }).then(() => {
+            this.setState({ loading: false });
         });
     }
 
@@ -112,6 +116,7 @@ class Signup extends React.Component {
                                             <button
                                                 className='btn btn-primary shadow d-block w-100'
                                                 type='submit'
+                                                disabled={this.state.loading}
                                             >
                                                 Sign Up
                                             </button>

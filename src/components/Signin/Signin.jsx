@@ -19,13 +19,16 @@ class Signin extends React.Component {
 
         this.state = {
             error: '',
-            message
+            message,
+            loading: false,
         };
 
     }
 
     handleSubmit(event) {
         event.preventDefault();
+        this.setState({ loading: true });
+
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         supabase.auth.signIn({
@@ -34,6 +37,8 @@ class Signin extends React.Component {
             if (error) this.setState({ error: error.message });
         }).catch((error) => {
             this.setState({ error: error.message });
+        }).then(() => {
+            this.setState({ loading: false });
         });
     }
 
@@ -97,6 +102,7 @@ class Signin extends React.Component {
                                             <button
                                                 className='btn btn-primary shadow d-block w-100'
                                                 type='submit'
+                                                disabled={this.state.loading}
                                             >
                                                 Sign in
                                             </button>
