@@ -16,7 +16,6 @@ const withParams = (props) => {
   return props => <App {...props} params={useParams()} />;
 }
 
-const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; //'https://videovoicechat.jaguaravi.repl.co';
 const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; /*'https://jaguarchat.jaguaravi.repl.co';*/
 
 const CONSTRAINS = {
