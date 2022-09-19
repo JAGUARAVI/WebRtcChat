@@ -5,6 +5,7 @@ import {
     Routes
 } from 'react-router-dom';
 import { supabase } from '../../supabaseClient.js';
+import Home from '../Home/Home.jsx';
 import Main from '../Main/Main';
 import Signin from '../Signin/Signin';
 import Signup from '../Signup/Signup.jsx';
@@ -32,14 +33,7 @@ class App extends React.Component {
                     <Route path='/' element={
                         <>
                             <Navbar session={this.state.session} />
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                height: '100vh'
-                            }}>
-                                <h1>Nothing Here</h1>
-                            </div>
+                            <Home session={this.state.session} />
                         </>
                     } />
                     <Route path='/meeting/:id' element={
@@ -55,7 +49,6 @@ class App extends React.Component {
                             <Profile session={this.state.session} />
                         </>
                     } />
-
                     <Route path='/signin' element={
                         <>
                             <Navbar session={this.state.session} />

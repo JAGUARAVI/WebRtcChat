@@ -17,6 +17,7 @@ const withParams = (props) => {
 }
 
 const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; //'https://videovoicechat.jaguaravi.repl.co';
+const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; /*'https://jaguarchat.jaguaravi.repl.co';*/
 
 const CONSTRAINS = {
   audio: {
@@ -73,13 +74,13 @@ class App extends React.Component {
     };
 
     {
-    this.renderRequestId = null;
-    this.canvasRender = async () => { }
-    this.updatePostProcessingConfig = () => { };
-    this.updateBackgroundConfig = () => { };
+      this.renderRequestId = null;
+      this.canvasRender = async () => { }
+      this.updatePostProcessingConfig = () => { };
+      this.updateBackgroundConfig = () => { };
 
-    this.canvas = document.createElement('canvas');
-    this.video = document.createElement('video');
+      this.canvas = document.createElement('canvas');
+      this.video = document.createElement('video');
 
       const indexedDB = window.indexedDB.open('backgrounds', 1);
       this.indexedDB = null;
@@ -409,6 +410,10 @@ class App extends React.Component {
 
     const { height, width } = this.state.localStream.getVideoTracks()[0]?.getSettings() || { width: 640, height: 360 };
 
+    if (document.getElementById('psudo-video')) {
+      document.getElementById('psudo-video').remove();
+    }
+
     const video = document.createElement('video');
     video.id = 'psuedo-video';
     video.srcObject = this.state.localStream;
@@ -579,7 +584,8 @@ class App extends React.Component {
       localStorage.setItem('camera', this.state.selected.camera);
       localStorage.setItem('speaker', this.state.selected.speaker);
 
-      this.refreshStream.bind(this)();
+      await this.refreshStream.bind(this)();
+      await this.canvasPipeline.bind(this)();
     }
 
     const data = await new Promise((res) => this.indexedDB ? this.indexedDB.transaction('backgrounds', 'readonly').objectStore('backgrounds').getAll().onsuccess = (e) => res(e.target.result) : res([]));
@@ -850,7 +856,7 @@ class App extends React.Component {
         {
           this.state.loading ? <Loading message={this.state.message} /> : null
         }
-        <section className='py-5 mt-5'>
+        <section className='py-5' style={{ marginTop: '5rem' }}>
           <div className='container'>
             <div className='row mb-3'>
               <div className='col-md-8 col-xl-6 text-center mx-auto'>

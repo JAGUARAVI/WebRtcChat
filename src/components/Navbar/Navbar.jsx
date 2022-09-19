@@ -23,9 +23,9 @@ class Navbar extends React.Component {
                 <div className='container'>
                     <a className='navbar-brand d-flex align-items-center' href='/'>
                         <span className='bs-icon-xl bs-icon-circle bs-icon-black text-primary d-flex justify-content-center align-items-center me-2 bs-icon'>
-                            <img style={{ height: '3rem', width: '3rem' }} src='/JaguarChat.svg' />
+                            <img style={{ height: '3rem', width: '3rem' }} src='/JaguarChat.svg' alt='brand-icon' />
                         </span>
-                        <span>Jaguar Chat</span>
+                        <span>JAGUAR CHAT</span>
                     </a>
                     <button data-bs-toggle='collapse' className='navbar-toggler' data-bs-target='#navcol-2'><span className='visually-hidden'>Toggle
                         navigation</span><span className='navbar-toggler-icon' /></button>
@@ -44,11 +44,11 @@ class Navbar extends React.Component {
                                             href='#'
                                         >
                                             <img
-                                                id="avatar"
-                                                alt="avatar"
-                                                className="rounded-circle img-profile"
+                                                id='avatar'
+                                                alt='avatar'
+                                                className='rounded-circle img-profile'
                                                 src={avatar}
-                                                style={{ aspectRatio: 1, maxHeight: "3rem", border: "none" }}
+                                                style={{ aspectRatio: 1, maxHeight: '3rem', border: 'none' }}
                                                 onError={(e) => {
                                                     e.preventDefault();
                                                     e.target.src = replacement;
