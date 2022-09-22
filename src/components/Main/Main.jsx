@@ -16,8 +16,6 @@ const withParams = (props) => {
   return props => <App {...props} params={useParams()} />;
 }
 
-const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; /*'https://jaguarchat.jaguaravi.repl.co';*/
-
 const CONSTRAINS = {
   audio: {
     noiseSuppression: true,
@@ -30,6 +28,8 @@ const CONSTRAINS = {
     facingMode: 'user'
   }
 };
+
+const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; /*'https://jaguarchat.jaguaravi.repl.co';*/
 
 const SERVERS = [
   {
@@ -46,6 +46,8 @@ const DEBUG = false;
 class App extends React.Component {
   constructor(props) {
     super(props);
+
+    this.CONSTRAINS = { ...CONSTRAINS };
 
     this.state = {
       loading: true,
@@ -118,9 +120,14 @@ class App extends React.Component {
       this.comms.on('videoDisable', (state) => {
         this.state.stream.getVideoTracks().map((track) => track.enabled = !state);
         this.state.media.find((val) => val.id === 'local').data.clientVideoHide = state;
+
+        if (state) this.CONSTRAINS.video = false;
+        else this.CONSTRAINS.video = CONSTRAINS.video;
+
+        this.refreshStream.bind(this)();
       });
 
-      document.title = this.state.meeting.name;
+      document.title = this.state.meeting.name + ' | Jaguar Chat';
     }
   }
 
@@ -179,6 +186,7 @@ class App extends React.Component {
 
       if (this.state.peers.some((p) => p.id == peerId) || this.state.media.some((m) => m.data.id == config.userdata.id) || config.userdata.id == supabase.auth.user().id) {
         console.log('Already connected to peer');
+        console.log(this.state.peers.some((p) => p.id == peerId), this.state.media.some((m) => m.data.id == config.userdata.id), config.userdata.id == supabase.auth.user().id)
         return;
       }
 
@@ -207,7 +215,7 @@ class App extends React.Component {
 
       connection.ontrack = async (event) => {
         if (DEBUG) console.log('ontrack', event.track);
-        if (event.track.kind === 'audio') await event.track.applyConstraints({ audio: CONSTRAINS.audio });
+        if (event.track.kind === 'audio') await event.track.applyConstraints({ audio: this.CONSTRAINS.audio });
         remote.addTrack(event.track);
       };
 
@@ -313,14 +321,27 @@ class App extends React.Component {
 
   async refreshStream() {
     if (DEBUG) console.log('refreshStream');
-    const stream = await navigator.mediaDevices.getUserMedia(Object.assign(CONSTRAINS, {
-      video: {
-        deviceId: this.state.selected.camera,
-      },
-      audio: {
-        deviceId: this.state.selected.microphone,
-      }
-    })).catch((err) => {
+
+    const constrains = Object.assign(
+      {},
+      this.CONSTRAINS,
+      this.CONSTRAINS.video ? {
+        video: {
+          deviceId: this.state.selected.camera,
+          ...this.CONSTRAINS.video
+        }
+      } : {},
+      this.CONSTRAINS.audio ? {
+        audio: {
+          deviceId: this.state.selected.microphone,
+          ...this.CONSTRAINS.audio
+        }
+      } : {}
+    );
+
+    if (true) console.log('this.state.stream', constrains);
+
+    const stream = await navigator.mediaDevices.getUserMedia(constrains).catch((err) => {
       console.log('Access denied for audio/video');
       console.log('Starting with empty stream...');
       this.ready = true;
@@ -339,8 +360,8 @@ class App extends React.Component {
   }
 
   async updateRemoteStreams(audio, video) {
-    if (!audio) audio = this.state.stream.getAudioTracks()[0];
-    if (!video) video = this.state.stream.getVideoTracks()[0];
+    if (!audio) audio = this.state.stream.getAudioTracks()?.[0];
+    if (!video) video = this.state.stream.getVideoTracks()?.[0];
 
     if (DEBUG) console.log('updateRemoteStreams', audio, video);
 
@@ -642,8 +663,8 @@ class App extends React.Component {
   componentWillUnmount() {
     cancelAnimationFrame(this.renderRequestId);
     this.socket.close();
-    document.body.removeChild(this.media);
-    document.body.removeChild(document.getElementById('psuedo-video'));
+    if (this.media) document.body.removeChild(this.media);
+    if (document.getElementById('psuedo-video')) document.body.removeChild(document.getElementById('psuedo-video'));
   }
 
   render() {
