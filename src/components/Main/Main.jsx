@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { useParams, Navigate } from 'react-router-dom';
 import Menu from '../Menu/Menu';
-import Media from '../Media/Media';
 import Loading from '../Loading/Loading';
 import './Main.css';
 import io from 'socket.io-client';
@@ -11,6 +10,7 @@ import EventEmitter from '../../EventEmitter';
 import { supabase } from '../../supabaseClient';
 import { getTfLite } from '../../core/helpers/getTfLite';
 import { buildCanvas2dPipeline } from '../../pipelines/canvas2d/canvas2dPipeline';
+import MediaManager from '../MediaManager/MediaManager';
 
 const withParams = (props) => {
   return props => <App {...props} params={useParams()} />;
@@ -29,26 +29,26 @@ const CONSTRAINS = {
   }
 };
 
-const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; /*'https://jaguarchat.jaguaravi.repl.co';*/
+const SIGNALING_SERVER = /*`https://${window.location.hostname}:${window.location.port}`;*/ 'https://jaguarchat.jaguaravi.repl.co';
 
 const SERVERS = [
   {
-    urls: "stun:openrelay.metered.ca:80",
+    urls: 'stun:openrelay.metered.ca:80',
   },
   {
-    urls: "turn:openrelay.metered.ca:80",
-    username: "openrelayproject",
-    credential: "openrelayproject",
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
   },
   {
-    urls: "turn:openrelay.metered.ca:443",
-    username: "openrelayproject",
-    credential: "openrelayproject",
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
   },
   {
-    urls: "turn:openrelay.metered.ca:443?transport=tcp",
-    username: "openrelayproject",
-    credential: "openrelayproject",
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
   },
 ];
 

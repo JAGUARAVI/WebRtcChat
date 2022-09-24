@@ -12,7 +12,6 @@ import Signup from '../Signup/Signup.jsx';
 import Profile from '../Profile/Profile.jsx';
 import Navbar from '../Navbar/Navbar';
 import Error404 from '../404/404.jsx';
-import Test from '../Test/Test.jsx';
 
 class App extends React.Component {
     constructor(props) {
@@ -59,12 +58,6 @@ class App extends React.Component {
                         <>
                             <Navbar session={this.state.session} />
                             <Signup session={this.state.session} />
-                        </>
-                    } />
-                    <Route path='/test' element={
-                        <>
-                            <Navbar session={this.state.session} />
-                            <Test session={this.state.session} />
                         </>
                     } />
                     <Route path='*' element={
