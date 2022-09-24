@@ -29,7 +29,7 @@ const CONSTRAINS = {
   }
 };
 
-const SIGNALING_SERVER = /*`https://${window.location.hostname}:${window.location.port}`;*/ 'https://jaguarchat.jaguaravi.repl.co';
+const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.port}`; /*'https://jaguarchat.jaguaravi.repl.co';*/
 
 const SERVERS = [
   {
