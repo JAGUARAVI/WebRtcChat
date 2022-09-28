@@ -33,9 +33,6 @@ const SIGNALING_SERVER = `https://${window.location.hostname}:${window.location.
 
 const SERVERS = [
   {
-    urls: 'stun:openrelay.metered.ca:80',
-  },
-  {
     urls: 'turn:openrelay.metered.ca:80',
     username: 'openrelayproject',
     credential: 'openrelayproject',
