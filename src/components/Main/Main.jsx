@@ -257,6 +257,8 @@ class App extends React.Component {
 
         if (DEBUG) console.log('Offer setLocalDescription succeeded');
       }
+
+      this.setState({});
     }).bind(this));
 
     this.socket.on('sessionDescription', (async (config) => {
@@ -308,10 +310,10 @@ class App extends React.Component {
       if (this.comms._events[peerId]) delete this.comms._events[peerId];
 
       try {
-        this.setState({
-          peers: this.state.peers.filter((p) => p.id != peerId),
-          media: this.state.media.filter((m) => m.id != peerId)
-        });
+        this.setState((state) => ({
+          peers: state.peers.filter((p) => p.id != peerId),
+          media: state.media.filter((m) => m.id != peerId)
+        }));
       } catch (e) {
         this.state.peers = this.state.peers.filter((p) => p.id != peerId);
         this.state.media = this.state.media.filter((m) => m.id != peerId);
@@ -886,6 +888,9 @@ class App extends React.Component {
             <div
               id='data-row'
               className='row mx-auto'
+              style={{
+                paddingBottom: '3rem'
+              }}
             >
               {
                 this.state.media.map((media) => (
@@ -893,7 +898,6 @@ class App extends React.Component {
                 ))
               }
             </div>
-
           </div>
         </section>
         {Settings}

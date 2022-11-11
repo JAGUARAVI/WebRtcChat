@@ -4,14 +4,14 @@ import {
     Route,
     Routes
 } from 'react-router-dom';
-import { supabase } from '../../supabaseClient.js';
-import Home from '../Home/Home.jsx';
+import { supabase } from '../../supabaseClient';
+import Home from '../Home/Home';
 import Main from '../Main/Main';
 import Signin from '../Signin/Signin';
-import Signup from '../Signup/Signup.jsx';
-import Profile from '../Profile/Profile.jsx';
+import Signup from '../Signup/Signup';
+import Profile from '../Profile/Profile';
 import Navbar from '../Navbar/Navbar';
-import Error404 from '../404/404.jsx';
+import Error404 from '../404/404';
 
 class App extends React.Component {
     constructor(props) {
